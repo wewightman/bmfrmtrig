@@ -5,29 +5,63 @@
 #include<math.h>
 #include "trigengines.c"
 
+#define EPSILON 1E-32
+
 int test_rxengine() {
-    float xfield[] = {0, 1, -1, 0};
-    float yfield[] = {0, 1, -1, 0};
-    float zfield[] = {0, 0, 0, 1};
-    float xyzref = 0;
-    float c = 1540;
-    float tau_known[] = {0, sqrtf(2)/c, sqrtf(2)/c, sqrtf(2)/c};
+    float xfield[4] = {0.0f, 1.0f, -1.0f, 0.0f};
+    float yfield[4] = {0.0f, 1.0f, -1.0f, 0.0f};
+    float zfield[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    float xyzref = 0.0f;
+    float c = 2.0f;
+    float tau_known[] = {0.0f, sqrtf(2.0f)/c, sqrtf(2.0f)/c, 1/c};
     float * tau = rxengine(4, c, xyzref, xyzref, xyzref, xfield, yfield, zfield);
 
+    int failed = 0;
     for(int i = 0; i < 4; ++i) {
-        if(abs(tau[i] - tau_known[i]) > 1E-6) {
-            return -1;
+        if(abs(tau[i] - tau_known[i]) > EPSILON) {
+            failed = -1;
+            printf("    index %d: expected %0.06e but got %0.06e\n", i, tau_known[i], tau[i]);
         }
     }
 
-    return 0;
+    return failed;
+}
+
+int test_pwtxengine() {
+    float xfield[4] = {0.0f, 1.0f, -1.0f, 0.0f};
+    float yfield[4] = {0.0f, 1.0f, -1.0f, 0.0f};
+    float zfield[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    float xyzref = 0.0f;
+    float nxy = 0;
+    float nz = 1.0f;
+    float c = 2.0f;
+    float tref = 0.0f;
+    float * tau_known = zfield;
+    float * tau = pwtxengine(4, c, tref, xyzref, xyzref, xyzref, nxy, nxy, nz, xfield, yfield, zfield);
+
+    int failed = 0;
+    for(int i = 0; i < 4; ++i) {
+        if(abs(tau[i] - tau_known[i]) > EPSILON) {
+            failed = -1;
+            printf("    index %d: expected %0.06e but got %0.06e\n", i, tau_known[i], tau[i]);
+        }
+    }
+
+    return failed;
 }
 
 int main(){
     printf("Beginning testing suite...\n");
-    if (test_rxengine()) {
-        printf("  An unexpected value occured in test_rxengine");
-    }
+
+    // run rxengine test
+    printf("  Testing rxengine...\n");
+    if (test_rxengine()) {printf("  Test failed\n");} else {printf("  Test passed\n");}
+
+    // run pwtxengine test
+    printf("  Testing pwtxengine...\n");
+    if (test_pwtxengine()) {printf("  test failed\n");} 
+    else {printf("  Test passed\n");}
+
     printf("Completed testing\n");
     return 0;
 }
