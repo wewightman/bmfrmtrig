@@ -62,15 +62,9 @@ class PWBeamformer():
     def __call__(self, data):
         global SLICE
         SLICE = data
-        print("Shape:", SLICE.shape)
-        print("Tinds shape", len(TINDS), TINDS[0].shape)
 
         with Pool() as p:
             results = p.map(self.bmfrm, range(SLICE.shape[1]))
-        
-        print(len(results), results[0].shape)
-        print(results[0])
-        print(TINDS[0])
         summed = 0
         for result in results:
             summed += result
