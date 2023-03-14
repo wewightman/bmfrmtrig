@@ -1,2 +1,0 @@
-rm *.so
-rm *.dll
