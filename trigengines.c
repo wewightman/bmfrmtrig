@@ -104,7 +104,7 @@ int * genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n
  * returns an Ntau length array of integer indices with values ranging from [-1, Ntrace)
  * A value of -1 indicates an array index out of bounds or a masked out value
  */
-int * calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tautx, float * taurx, float *mask, float * trace) {
+int * calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tautx, float * taurx, float *mask) {
     int * indices= malloc(sizeof(int) * Ntau);
     int index;
 
@@ -120,7 +120,3 @@ int * calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tautx, f
 
     return indices;
 }
-
-/**
- * 
- */
