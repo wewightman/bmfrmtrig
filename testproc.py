@@ -4,8 +4,8 @@ import pwbeamformer as pwb
 import pyus.data.io as dio
 
 # Load file
-filedir = "/datacommons/ultrasound/TIMuscle/InVivo/20230303_invivo/phantom/RawRF/"
-filename = "20230303_064805958"
+filedir = "/home/wren/Documents/phdprojects/data/20230208_developmentrf/acq_wire/"
+filename = "20230208_153318694"
 
 params = dio.loadmat(filename=filename+"_RF", filedir=filedir)
 nsamp = 2*4*(params['track_params']['rx']['endDepth'] - params['track_params']['startDepth'])

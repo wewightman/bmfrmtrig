@@ -65,15 +65,17 @@ def __gentables__(index):
     # get delay table
     inds = _trig.calcindices(NPOINTS, NSAMP, TSTART, TS, _tautx, _taurx, _mask)
     
+    tau = _np.array(NPOINTS)
     for ind in range(NPOINTS):
-        TABLE[index*NPOINTS + ind] = inds[ind]
+        tau[ind] = inds[ind]
+    return tau
 
 def __init_table__():
     global TABLE
     TABLE = RawArray(ctypes.c_int, NREFS*NPOINTS)
 
     with Pool() as p:
-        p.map(__gentables__, range(NREFS))
+        tau = p.map(__gentables__, range(NREFS))
 
     # print(_tables)
     
