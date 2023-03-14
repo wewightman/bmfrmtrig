@@ -40,7 +40,9 @@ class PWBeamformer():
     def gentabs(self, ind):
         tau_rx = trig.rxengine(C, self.refs[ind,:], POINTS)
         tau_tx = trig.pwtxengine(C, self.trefs[ind], self.alphas[ind], 0, self.refs[ind,:], POINTS)
-        return np.round((tau_rx + tau_tx - TSTART)/TS).astype(int)
+        tind = np.round((tau_rx + tau_tx - TSTART)/TS).astype(int)
+        tind[(tind < 0) | (tind >= NSAMP)] = -1
+        return tind
 
     def __init_tabs__(self):
         global TINDS
@@ -64,7 +66,7 @@ class PWBeamformer():
         print("Tinds shape", len(TINDS), TINDS[0].shape)
 
         with Pool() as p:
-            results = p.map(self.bmfrm, range(len(self.trefs)))
+            results = p.map(self.bmfrm, range(SLICE.shape[1]))
         
         print(len(results), results[0].shape)
         print(results[0])
