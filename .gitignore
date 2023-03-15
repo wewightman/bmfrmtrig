@@ -1,3 +1,2 @@
 .vscode
-rxengine
-test_rxengine
+__pycache__/
