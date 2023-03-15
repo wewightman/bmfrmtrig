@@ -4,7 +4,8 @@ import ctypes
 from multiprocessing import Pool, RawValue, RawArray
 from Beamformer import Beamformer, __BMFRM_PARAMS__
 
-import trigc as trig
+# python ctype wrappers for c engines
+import trig
 
 class PWBeamformer(Beamformer):
     """Right now, assumes all points are within y=0"""
@@ -46,13 +47,13 @@ class PWBeamformer(Beamformer):
 
         # make a buffer of time index arrays
         params['tinds'] = []
-        for ind in range(params['nsamp']):
-            params['tinds'].append(RawArray(ctypes.c_int, params['nsamp']))
+        for ind in range(params['nacqs']):
+            params['tinds'].append(RawArray(ctypes.c_int, params['npoints']))
         
         # make a buffer of mask arrays
         params['masks'] = []
-        for ind in range(params['nsamp']):
-            params['masks'].append(RawArray(ctypes.c_int, params['nsamp']))
+        for ind in range(params['nacqs']):
+            params['masks'].append(RawArray(ctypes.c_int, params['npoints']))
 
         __BMFRM_PARAMS__[self.id] = params
 
@@ -93,11 +94,12 @@ class PWBeamformer(Beamformer):
         ref = params['refs'][ind]
         fnum = ctypes.c_float(params['fnum'])
         alpha = float(params['alphas'][ind])
+        mask = params['masks'][ind]
         focus = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         norm = np.ascontiguousarray([1, 0, 0], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
         # generate mask
-        trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'])
+        trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'], mask)
 
     def __init_tabs__(self):
         with Pool() as p:

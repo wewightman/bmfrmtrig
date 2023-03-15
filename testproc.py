@@ -1,7 +1,7 @@
 import numpy as np
 import PWBeamformer as pwb
 import matplotlib.pyplot as plt
-import trigc as trig
+import trig
 
 params = {}
 params['points'] = np.arange(3*16).reshape((-1,3))

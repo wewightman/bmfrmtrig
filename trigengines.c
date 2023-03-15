@@ -61,15 +61,13 @@ float * pwtxengine(int N, float c, float tref, float *ref, float *norm, float *p
     return tau;
 }
 
-int * genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n, float *focus, float *ref, float *points) {
+void genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n, float *focus, float *ref, float *points, int *mask) {
     float nmaj[3] = {n[0], n[1], 0.0f};
     float nmin[3] = {-n[1], n[0], 0.0f};
     float rmaj;
     float rmin;
     int inmaj;
     int inmin;
-
-    int * mask = malloc(sizeof(int) * N);
 
     for(int i = 0; i < N; ++i) {
         // calculate radius from center line
@@ -96,7 +94,6 @@ int * genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n
 
         mask[i] = inmaj && inmin;
     }
-    return mask;
 }
 
 /**
@@ -121,11 +118,13 @@ void calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tau, int 
 
     for (int i = 0; i < Ntau; ++i) {
         index = (int) ((tau[i] - tstart)/Ts);
-        if((index >= Ntrace) || (index < 0) || !mask[i]) {
-            tind[i] = index;
-        } else {
+        if (!mask[i]) {
+            tind[i] = -1;
+        } else if((index >= Ntrace) || (index < 0)) {
             tind[i] = -1;
             mask[i] = 0;
+        } else {
+            tind[i] = index;
         }
         
     }
