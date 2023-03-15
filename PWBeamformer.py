@@ -1,37 +1,15 @@
-import platform as _pltfm
 import ctypes
 import numpy as np
+import ctypes
 from multiprocessing import Pool, RawValue, RawArray
 from Beamformer import Beamformer, __BMFRM_PARAMS__
 
-# determine the OS
-if _pltfm.uname()[0] == "Windows":
-    name = "./_trig.dll"
-elif _pltfm.uname()[0] == "Linux":
-    name = "./_trig.so"
-else:
-    name = "./_trig.dylib"
-
-# load the c library
-_trig = ctypes.CDLL(name)
-
-# c function definitions inputs and outputs
-_trig.pwtxengine.argtypes = (ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
-_trig.pwtxengine.restype = ctypes.POINTER(ctypes.c_float)
-
-_trig.rxengine.argtypes = (ctypes.c_int, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
-_trig.rxengine.restype = ctypes.POINTER(ctypes.c_float)
-
-_trig.genmask3D.argtypes = (ctypes.c_int, ctypes.c_float, ctypes.c_int, ctypes.c_float, ctypes.c_int, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
-_trig.genmask3D.restype = ctypes.POINTER(ctypes.c_int)
-
-_trig.calcindices.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int))
-_trig.calcindices.restype = ctypes.POINTER(ctypes.c_int)
+import trigc as trig
 
 class PWBeamformer(Beamformer):
     """Right now, assumes all points are within y=0"""
     def __init__(self, c, fnum, points, alphas, trefs, refs, ts, tstart, nsamp:int):
-        Beamformer.__init__()
+        Beamformer.__init__(self)
 
         def putsingles(data, dtype):
             res = []
@@ -48,7 +26,7 @@ class PWBeamformer(Beamformer):
         # copy singleton vectors to param structure
         params = {}
         params['npoints'] = points.shape[0]
-        params['nacq'] = refs.shape[0]
+        params['nacqs'] = refs.shape[0]
         params['c'] = c
         params['fnum'] = fnum
         params['nsamp'] = nsamp
@@ -56,14 +34,14 @@ class PWBeamformer(Beamformer):
         params['tstart'] = tstart
 
         params['trefs'] = putsingles(trefs, ctypes.c_float)
-        params['alphas'] = putsingles(alphas, ctypes.c_float)
+        params['alphas'] = alphas
 
         params['refs'] = putarrays(refs, ctypes.c_float)
 
         # copy large arrays to ctypes
         params['points'] = RawArray(ctypes.c_float, params['npoints']*3)
         _points = np.ascontiguousarray(points, dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        for ind in range(len(_points)):
+        for ind in range(params['npoints']*3):
             params['points'][ind] = _points[ind]
 
         # make a buffer of time index arrays
@@ -74,15 +52,52 @@ class PWBeamformer(Beamformer):
         # make a buffer of mask arrays
         params['masks'] = []
         for ind in range(params['nsamp']):
-            params['masks'].append(RawArray(ctypes.c_uint8, params['nsamp']))
-        
+            params['masks'].append(RawArray(ctypes.c_int, params['nsamp']))
+
         __BMFRM_PARAMS__[self.id] = params
 
+        self.__init_masks__()
         self.__init_tabs__()
-        self.__init_tabs__()
+    
+    def __gen_tab__(self, ind):
+        params = __BMFRM_PARAMS__[self.id]
+        npoints = ctypes.c_int(params['npoints'])
+        nsamp = ctypes.c_int(params['nsamp'])
+        ref = params['refs'][ind]
+        tref = params['trefs'][ind]
+        c = ctypes.c_float(params['c'])
+        tstart = ctypes.c_float(params['tstart'])
+        ts = ctypes.c_float(params['ts'])
+        mask = params['masks'][ind]
+        tind = params['tinds'][ind]
+        alpha = float(params['alphas'][ind])
+
+        norm = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+
+        tautx = trig.pwtxengine(npoints, c, tref, ref, norm, params['points'])
+        taurx = trig.rxengine(npoints, c, ref, params['points'])
+        tau = trig.sumvecs(npoints, tautx, taurx, 0)
+        trig.freeme(tautx)
+        trig.freeme(taurx)
+        trig.calcindices(npoints, nsamp, tstart, ts, tau, mask, tind)
+        trig.freeme(tau)
+        pass
+
+    def __gen_mask__(self, ind):
+        params = __BMFRM_PARAMS__[self.id]
+        npoints = ctypes.c_int(params['npoints'])
+        ref = params['refs'][ind]
+        fnum = ctypes.c_float(params['fnum'])
+        alpha = float(params['alphas'][ind])
+        focus = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        norm = np.ascontiguousarray([1, 0, 0], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+
+        trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'])
 
     def __init_tabs__(self):
-        return super().__init_tabs__()
+        with Pool() as p:
+            p.map(self.__gen_tab__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
     
     def __init_masks__(self):
-        return super().__init_masks__()
+        with Pool() as p:
+            p.map(self.__gen_mask__, range(__BMFRM_PARAMS__[self.id]['nacqs']))

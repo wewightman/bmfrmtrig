@@ -8,6 +8,7 @@ class Beamformer(ABC):
 
     def __init__(self):
         self.id = int(Beamformer.__bmfrm_id_counter__)
+        __BMFRM_PARAMS__.append(dict())
         Beamformer.__bmfrm_id_counter__ += int(1)
 
     @abstractmethod

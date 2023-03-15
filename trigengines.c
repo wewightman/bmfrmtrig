@@ -40,7 +40,7 @@ float * rxengine(int N, float c, float * ref, float * points) {
  * norm: (x, y, z) normal vector
  * xfield, nx, yfield, ny, zfield, nz: pointers to length N arrays of (x, y, z) coordinates in field
  */
-float * pwtxengine(int N, float c, float tref, float * ref, float * norm, float *points) {
+float * pwtxengine(int N, float c, float tref, float *ref, float *norm, float *points) {
     // define the output array of tau
     float * tau;
     tau = malloc(N*sizeof(float));
@@ -100,23 +100,53 @@ int * genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n
 }
 
 /**
+ * sumvecs:
+ * sum vec1, vec2, and a given constant value
+ */
+float * sumvecs(int N, float *vec1, float *vec2, float v0) {
+    float * summed = malloc(sizeof(float) * N);
+    for (int i = 0; i < N; ++i) {
+        summed[i] = vec1[i] + vec2[i] + v0;
+    }
+    return summed;
+}
+
+/**
  * calcindices
  * returns an Ntau length array of integer indices with values ranging from [-1, Ntrace)
  * A value of -1 indicates an array index out of bounds or a masked out value
  */
-int * calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tautx, float * taurx, float *mask) {
-    int * indices= malloc(sizeof(int) * Ntau);
+void calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tau, int *mask, int * tind) {
     int index;
 
     for (int i = 0; i < Ntau; ++i) {
-        index = (int) ((tautx[i] + taurx[i] - tstart)/Ts);
+        index = (int) ((tau[i] - tstart)/Ts);
         if((index >= Ntrace) || (index < 0) || !mask[i]) {
-            indices[i] = index;
+            tind[i] = index;
         } else {
-            indices[i] = -1;
+            tind[i] = -1;
+            mask[i] = 0;
         }
         
     }
+}
 
-    return indices;
+/**
+ * freeme:
+ * Free an allocated c-array
+ */
+void freeme(float * ptr) {
+    free((void*)ptr);
+}
+
+/**
+ * 
+ */
+void printifa(int i, float f, float * a, int na) {
+    printf("%p \n", a);
+    printf("%d, %0.03f, [", i, f);
+    for (int icount = 0; icount < na; ++icount) {
+        printf("%f, ", a[icount]);
+    }
+    printf("\b\b]\n");
 }
