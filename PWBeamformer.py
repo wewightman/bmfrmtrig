@@ -9,7 +9,7 @@ import trig
 
 class PWBeamformer(Beamformer):
     """Right now, assumes all points are within y=0"""
-    def __init__(self, c, fnum, points, alphas, trefs, refs, ts, tstart, nsamp:int):
+    def __init__(self, c, fnum, points, alphas, trefs, refs, fs, tstart, nsamp:int):
         print("Initializing a PWBeamformer...")
         Beamformer.__init__(self)
 
@@ -35,7 +35,7 @@ class PWBeamformer(Beamformer):
         params['c'] = c
         params['fnum'] = fnum
         params['nsamp'] = nsamp
-        params['ts'] = ts
+        params['fs'] = fs
         params['tstart'] = tstart
         params['alphas'] = alphas
         params['refs'] = refs
@@ -63,9 +63,17 @@ class PWBeamformer(Beamformer):
         for ind in range(params['nacqs']):
             params['masks'].append(RawArray(ctypes.c_int, params['npoints']))
 
-        # make a buffer to process data
+        # make a buffer to store raw data
         print("    Allocating databuffer...")
-        params['data'] = RawArray(ctypes.c_float, params['nacqs']*params['nsamp'])
+        params['datas'] = []
+        for ind in range(params['nacqs']):
+            params['datas'].append(RawArray(ctypes.c_float, params['nsamp']))
+
+        # make a buffer to store raw data
+        print("    Allocating result buffers...")
+        params['results'] = []
+        for ind in range(params['nacqs']):
+            params['results'].append(RawArray(ctypes.c_float, params['npoints']))
 
         print("  Registering beamformer with global indexes")
         __BMFRM_PARAMS__[self.id] = params
@@ -83,7 +91,7 @@ class PWBeamformer(Beamformer):
         tref = params['trefs'][ind]
         c = ctypes.c_float(params['c'])
         tstart = ctypes.c_float(params['tstart'])
-        ts = ctypes.c_float(params['ts'])
+        fs = ctypes.c_float(params['fs'])
         mask = params['masks'][ind]
         tind = params['tinds'][ind]
         alpha = float(params['alphas'][ind])
@@ -97,7 +105,7 @@ class PWBeamformer(Beamformer):
         trig.freeme(taurx)
 
         # calculate index to select
-        trig.calcindices(npoints, nsamp, tstart, ts, tau, mask, tind)
+        trig.calcindices(npoints, nsamp, tstart, fs, tau, mask, tind)
         trig.freeme(tau)
         pass
 
@@ -128,35 +136,35 @@ class PWBeamformer(Beamformer):
     def __get_data__(self, ind):
         params = __BMFRM_PARAMS__[self.id]
         npoints = ctypes.c_int(params['npoints'])
-        nsamp = ctypes.c_int(params['nsamp'])
         tind = params['tinds'][ind]
-        data = params['data']
-        indc = ctypes.c_int(ind)
+        data = params['datas'][ind]
+        result = params['results'][ind]
 
-        trig.selectdata(nsamp, npoints, indc, tind, data)
-        pass
+        trig.selectdata(npoints, tind, data, result)
 
     def __call__(self, data):
         params = __BMFRM_PARAMS__[self.id]
         nacqs = params['nacqs']
         npoints = params['npoints']
-        data = np.ascontiguousarray(data, dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        for ind in range(params['nacqs'] * params['nsamp']):
-            params['data'] = data[ind]
 
+        print("Beamforming")
+        print("  Copying data...")
+        for ind in range(params['nacqs'] * params['nsamp']):
+            indacq = int(ind // params['nsamp'])
+            indsamp = int(ind % params['nsamp'])
+            params['datas'][indacq][indsamp] = ctypes.c_float(data[indsamp][indacq])
+
+        print("  Starting pool...")
         # send data collection to parallelization pool (eg delay)
         with Pool() as p:
-            outputs = p.map(self.__get_data__, range(nacqs))
+            print("    Pool active")
+            p.map(self.__get_data__, range(nacqs))
 
         # sum up all output vectors and clear from memory(eg and sum)
-        summed = outputs[0]
-        for ind in range(1, nacqs):
-            sumtemp = trig.sumvecs(npoints, summed, outputs[ind], 0)
-            trig.freeme(summed)
-            trig.freeme(outputs[ind])
-            summed = sumtemp
-
-        sumnp = np.array([summed[ind] for ind in range(npoints)], dtype=float)
-        trig.freeme(summed)
-        return sumnp
+        print("  Summing results...")
+        results = params['results']
+        summed = np.ascontiguousarray(np.zeros(npoints), dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        for result in results:
+            summed = trig.sumvecs(ctypes.c_int(npoints), summed, result, ctypes.c_float(0))
+        return np.array([summed[ind] for ind in range(npoints)])
         

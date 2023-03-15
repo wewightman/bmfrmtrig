@@ -28,8 +28,7 @@ genmask3D = _trig.genmask3D
 _trig.calcindices.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
 calcindices = _trig.calcindices
 
-_trig.selectdata.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float),)
-_trig.selectdata.restype = ctypes.POINTER(ctypes.c_float)
+_trig.selectdata.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
 selectdata = _trig.selectdata
 
 _trig.sumvecs.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_float)

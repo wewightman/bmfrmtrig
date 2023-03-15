@@ -113,11 +113,11 @@ float * sumvecs(int N, float *vec1, float *vec2, float v0) {
  * returns an Ntau length array of integer indices with values ranging from [-1, Ntrace)
  * A value of -1 indicates an array index out of bounds or a masked out value
  */
-void calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tau, int *mask, int * tind) {
+void calcindices(int Ntau, int Ntrace, float tstart, float fs, float * tau, int *mask, int * tind) {
     int index;
 
     for (int i = 0; i < Ntau; ++i) {
-        index = (int) ((tau[i] - tstart)/Ts);
+        index = (int) ((tau[i] - tstart)*fs);
         if (!mask[i]) {
             tind[i] = -1;
         } else if((index >= Ntrace) || (index < 0)) {
@@ -134,16 +134,13 @@ void calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tau, int 
  * selectdata
  * reads rawdata from a given pointer for entires dataset
 */
-float * selectdata(int Nsamp, int Ntind, int indacq, int * tind, float * data) {
-    float * datasel = malloc(sizeof(int) * Ntind);
+void selectdata(int Ntind, int *tind, float *data, float *dataout) {
     int itind;
-
     for (int i = 0; i < Ntind; ++i) {
         itind = tind[i];
-        datasel[itind] = data[Nsamp*indacq + itind];
+        if (itind < 0) {dataout[i] = 0;}
+        else {dataout[i] = data[itind];}
     }
-
-    return datasel;
 }
 
 /**
