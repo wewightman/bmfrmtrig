@@ -131,6 +131,22 @@ void calcindices(int Ntau, int Ntrace, float tstart, float Ts, float * tau, int 
 }
 
 /**
+ * selectdata
+ * reads rawdata from a given pointer for entires dataset
+*/
+float * selectdata(int Nsamp, int Ntind, int indacq, int * tind, float * data) {
+    float * datasel = malloc(sizeof(int) * Ntind);
+    int itind;
+
+    for (int i = 0; i < Ntind; ++i) {
+        itind = tind[i];
+        datasel[itind] = data[Nsamp*indacq + itind];
+    }
+
+    return datasel;
+}
+
+/**
  * freeme:
  * Free an allocated c-array
  */

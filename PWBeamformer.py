@@ -55,6 +55,8 @@ class PWBeamformer(Beamformer):
         for ind in range(params['nacqs']):
             params['masks'].append(RawArray(ctypes.c_int, params['npoints']))
 
+        params['data'] = RawArray(ctypes.c_float, params['nacqs']*params['nsamp'])
+
         __BMFRM_PARAMS__[self.id] = params
 
         self.__init_masks__()
@@ -108,3 +110,39 @@ class PWBeamformer(Beamformer):
     def __init_masks__(self):
         with Pool() as p:
             p.map(self.__gen_mask__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
+
+    def __get_data__(self, ind):
+        params = __BMFRM_PARAMS__[self.id]
+        npoints = ctypes.c_int(params['npoints'])
+        nsamp = ctypes.c_int(params['nsamp'])
+        tind = params['tinds'][ind]
+        data = params['data']
+        indc = ctypes.c_int(ind)
+
+        trig.selectdata(nsamp, npoints, indc, tind, data)
+        pass
+
+    def __call__(self, data):
+        params = __BMFRM_PARAMS__[self.id]
+        nacqs = params['nacqs']
+        npoints = params['npoints']
+        data = np.ascontiguousarray(data, dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        for ind in range(params['nacqs'] * params['nsamp']):
+            params['data'] = data[ind]
+
+        # send data collection to parallelization pool (eg delay)
+        with Pool() as p:
+            outputs = p.map(self.__get_data__, range(nacqs))
+
+        # sum up all output vectors and clear from memory(eg and sum)
+        summed = outputs[0]
+        for ind in range(1, nacqs):
+            sumtemp = trig.sumvecs(npoints, summed, outputs[ind], 0)
+            trig.freeme(summed)
+            trig.freeme(outputs[ind])
+            summed = sumtemp
+
+        sumnp = np.array([summed[ind] for ind in range(npoints)], dtype=float)
+        trig.freeme(summed)
+        return sumnp
+        
