@@ -1,7 +1,6 @@
 import numpy as np
 import PWBeamformer as pwb
 import matplotlib.pyplot as plt
-import ctypes
 import trigc as trig
 
 params = {}

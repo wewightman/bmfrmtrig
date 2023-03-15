@@ -47,7 +47,7 @@ class PWBeamformer(Beamformer):
         # make a buffer of time index arrays
         params['tinds'] = []
         for ind in range(params['nsamp']):
-            params['tinds'].append(RawArray(ctypes.c_float, params['nsamp']))
+            params['tinds'].append(RawArray(ctypes.c_int, params['nsamp']))
         
         # make a buffer of mask arrays
         params['masks'] = []
@@ -60,6 +60,7 @@ class PWBeamformer(Beamformer):
         self.__init_tabs__()
     
     def __gen_tab__(self, ind):
+        # load parameters
         params = __BMFRM_PARAMS__[self.id]
         npoints = ctypes.c_int(params['npoints'])
         nsamp = ctypes.c_int(params['nsamp'])
@@ -71,19 +72,22 @@ class PWBeamformer(Beamformer):
         mask = params['masks'][ind]
         tind = params['tinds'][ind]
         alpha = float(params['alphas'][ind])
-
         norm = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
+        # calculate time delays
         tautx = trig.pwtxengine(npoints, c, tref, ref, norm, params['points'])
         taurx = trig.rxengine(npoints, c, ref, params['points'])
         tau = trig.sumvecs(npoints, tautx, taurx, 0)
         trig.freeme(tautx)
         trig.freeme(taurx)
+
+        # calculate index to select
         trig.calcindices(npoints, nsamp, tstart, ts, tau, mask, tind)
         trig.freeme(tau)
         pass
 
     def __gen_mask__(self, ind):
+        # load parameters
         params = __BMFRM_PARAMS__[self.id]
         npoints = ctypes.c_int(params['npoints'])
         ref = params['refs'][ind]
@@ -92,6 +96,7 @@ class PWBeamformer(Beamformer):
         focus = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         norm = np.ascontiguousarray([1, 0, 0], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
+        # generate mask
         trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'])
 
     def __init_tabs__(self):
