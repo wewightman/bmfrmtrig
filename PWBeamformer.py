@@ -10,6 +10,7 @@ import trig
 class PWBeamformer(Beamformer):
     """Right now, assumes all points are within y=0"""
     def __init__(self, c, fnum, points, alphas, trefs, refs, ts, tstart, nsamp:int):
+        print("Initializing a PWBeamformer...")
         Beamformer.__init__(self)
 
         def putsingles(data, dtype):
@@ -21,9 +22,12 @@ class PWBeamformer(Beamformer):
         def putarrays(data, dtype):
             res = []
             for ind in range(data.shape[0]):
-                res.append(RawArray(dtype, np.ascontiguousarray(data[ind], dtype=dtype)))
+                res.append(RawArray(dtype, data.shape[1]))
+                for indd in range(data.shape[1]):
+                    res[ind][indd] = dtype(data[ind,indd])
             return res
-
+        
+        print("  Formatting input parameters...")
         # copy singleton vectors to param structure
         params = {}
         params['npoints'] = points.shape[0]
@@ -33,32 +37,40 @@ class PWBeamformer(Beamformer):
         params['nsamp'] = nsamp
         params['ts'] = ts
         params['tstart'] = tstart
-
-        params['trefs'] = putsingles(trefs, ctypes.c_float)
         params['alphas'] = alphas
+        params['refs'] = refs
 
-        params['refs'] = putarrays(refs, ctypes.c_float)
+        print("  Putting shared values...")
+        print("    Allocating trefs...")
+        params['trefs'] = putsingles(trefs, ctypes.c_float)
 
         # copy large arrays to ctypes
+        print("    Allocating points...")
         params['points'] = RawArray(ctypes.c_float, params['npoints']*3)
         _points = np.ascontiguousarray(points, dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         for ind in range(params['npoints']*3):
             params['points'][ind] = _points[ind]
 
         # make a buffer of time index arrays
+        print("    Allocating tinds...")
         params['tinds'] = []
         for ind in range(params['nacqs']):
             params['tinds'].append(RawArray(ctypes.c_int, params['npoints']))
         
         # make a buffer of mask arrays
+        print("    Allocating masks...")
         params['masks'] = []
         for ind in range(params['nacqs']):
             params['masks'].append(RawArray(ctypes.c_int, params['npoints']))
 
+        # make a buffer to process data
+        print("    Allocating databuffer...")
         params['data'] = RawArray(ctypes.c_float, params['nacqs']*params['nsamp'])
 
+        print("  Registering beamformer with global indexes")
         __BMFRM_PARAMS__[self.id] = params
 
+        print("  Filling tables")
         self.__init_masks__()
         self.__init_tabs__()
     
@@ -67,7 +79,7 @@ class PWBeamformer(Beamformer):
         params = __BMFRM_PARAMS__[self.id]
         npoints = ctypes.c_int(params['npoints'])
         nsamp = ctypes.c_int(params['nsamp'])
-        ref = params['refs'][ind]
+        ref = np.ascontiguousarray(params['refs'][ind,:], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         tref = params['trefs'][ind]
         c = ctypes.c_float(params['c'])
         tstart = ctypes.c_float(params['tstart'])
@@ -93,7 +105,7 @@ class PWBeamformer(Beamformer):
         # load parameters
         params = __BMFRM_PARAMS__[self.id]
         npoints = ctypes.c_int(params['npoints'])
-        ref = params['refs'][ind]
+        ref = np.ascontiguousarray(params['refs'][ind,:], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         fnum = ctypes.c_float(params['fnum'])
         alpha = float(params['alphas'][ind])
         mask = params['masks'][ind]
@@ -104,10 +116,12 @@ class PWBeamformer(Beamformer):
         trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'], mask)
 
     def __init_tabs__(self):
+        print("    Generating Transmission Tabs")
         with Pool() as p:
             p.map(self.__gen_tab__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
     
     def __init_masks__(self):
+        print("    Generating masks")
         with Pool() as p:
             p.map(self.__gen_mask__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
 
