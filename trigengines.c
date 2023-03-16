@@ -6,6 +6,16 @@
 #include"trigengines.h"
 
 /**
+ * fillarr
+ * fill a given vector with a given filvalue
+ */
+void fillarr(int N, float *vec, float fillval) {
+    for (int i = 0; i < N; ++i) {
+        vec[i] = fillval;
+    }
+}
+
+/**
  * rxengine
  * Calculate the temporal distance from reference point to each point in the field
  * N: number of points in field
@@ -13,13 +23,11 @@
  * xref, yref, zref: (x, y, z) coordinate of reference point [m]
  * xfield, yfield, zfield: pointers to length N arrays of (x, y, z) coordinates in field
  */
-float * rxengine(int N, float c, float * ref, float * points) {
+void rxengine(int N, float c, float * ref, float * points, float *tau) {
     // define the output array of tau
     float xdiff;
     float ydiff;
     float zdiff;
-    float * tau;
-    tau = malloc(N*sizeof(float));
 
     // iterate through each point
     for(int i = 0; i < N; ++i) {
@@ -27,11 +35,8 @@ float * rxengine(int N, float c, float * ref, float * points) {
         ydiff = points[3*i+1] - ref[1];
         zdiff = points[3*i+2] - ref[2];
 
-        tau[i] = sqrtf(xdiff*xdiff + ydiff*ydiff + zdiff*zdiff)/c;
+        tau[i] += sqrtf(xdiff*xdiff + ydiff*ydiff + zdiff*zdiff)/c;
     }
-
-    // return the tau pointer
-    return tau;
 }
 
 /**
@@ -43,25 +48,19 @@ float * rxengine(int N, float c, float * ref, float * points) {
  * norm: (x, y, z) normal vector
  * xfield, nx, yfield, ny, zfield, nz: pointers to length N arrays of (x, y, z) coordinates in field
  */
-float * pwtxengine(int N, float c, float *ref, float *norm, float *points) {
-    // define the output array of tau
-    float * tau;
-    tau = malloc(N*sizeof(float));
-
+void pwtxengine(int N, float c, float tref, float *ref, float *norm, float *points, float *tau) {
     // iterate through each point
     float xdiff;
     float ydiff;
     float zdiff;
+
     for(int i = 0; i < N; ++i) {
         xdiff = norm[0] * (points[3*i+0] - ref[0]);
         ydiff = norm[1] * (points[3*i+1] - ref[1]);
         zdiff = norm[2] * (points[3*i+2] - ref[2]);
 
-        tau[i] = (xdiff + ydiff + zdiff)/c;
+        tau[i] += (xdiff + ydiff + zdiff)/c + tref;
     }
-
-    // return the time delay pointer
-    return tau;
 }
 
 void genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n, float *focus, float *ref, float *points, int *mask) {
@@ -103,12 +102,10 @@ void genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n,
  * sumvecs:
  * sum vec1, vec2, and a given constant value
  */
-float * sumvecs(int N, float *vec1, float *vec2, float v0) {
-    float * summed = malloc(sizeof(float) * N);
+void sumvecs(int N, float *vec1, float *vec2, float v0, float *summed) {
     for (int i = 0; i < N; ++i) {
         summed[i] = vec1[i] + vec2[i] + v0;
     }
-    return summed;
 }
 
 /**
@@ -144,14 +141,6 @@ void selectdata(int Ntind, int *tind, float *data, float *dataout) {
         if (itind < 0) {dataout[i] = 0;}
         else {dataout[i] = data[itind];}
     }
-}
-
-/**
- * freeme:
- * Free an allocated c-array
- */
-void freeme(float * ptr) {
-    free((void*)ptr);
 }
 
 /**

@@ -39,46 +39,44 @@ class PWBeamformer(Beamformer):
         params['tstart'] = tstart
         params['alphas'] = alphas
         params['refs'] = refs
-
-        print("  Putting shared values...")
-        print("    Allocating trefs...")
         params['trefs'] = putsingles(trefs, ctypes.c_float)
 
         # copy large arrays to ctypes
-        print("    Allocating points...")
         params['points'] = RawArray(ctypes.c_float, params['npoints']*3)
         _points = np.ascontiguousarray(points, dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         for ind in range(params['npoints']*3):
             params['points'][ind] = _points[ind]
 
         # make a buffer of time index arrays
-        print("    Allocating tinds...")
         params['tinds'] = []
         for ind in range(params['nacqs']):
             params['tinds'].append(RawArray(ctypes.c_int, params['npoints']))
+
+        # make a intermediate buffer of tau arrays
+        params['taus'] = []
+        for ind in range(params['nacqs']):
+            params['taus'].append(RawArray(ctypes.c_float, params['npoints']))
         
         # make a buffer of mask arrays
-        print("    Allocating masks...")
         params['masks'] = []
         for ind in range(params['nacqs']):
             params['masks'].append(RawArray(ctypes.c_int, params['npoints']))
 
         # make a buffer to store raw data
-        print("    Allocating databuffer...")
         params['datas'] = []
         for ind in range(params['nacqs']):
             params['datas'].append(RawArray(ctypes.c_float, params['nsamp']))
 
         # make a buffer to store raw data
-        print("    Allocating result buffers...")
         params['results'] = []
         for ind in range(params['nacqs']):
             params['results'].append(RawArray(ctypes.c_float, params['npoints']))
 
-        print("  Registering beamformer with global indexes")
+        # allocate final output array
+        params['output'] = RawArray(ctypes.c_float, params['npoints'])
+
         __BMFRM_PARAMS__[self.id] = params
 
-        print("  Filling tables")
         self.__init_masks__()
         self.__init_tabs__()
     
@@ -93,20 +91,18 @@ class PWBeamformer(Beamformer):
         tstart = ctypes.c_float(params['tstart'])
         fs = ctypes.c_float(params['fs'])
         mask = params['masks'][ind]
+        tau = params['taus'][ind]
         tind = params['tinds'][ind]
         alpha = float(params['alphas'][ind])
         norm = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
         # calculate time delays
-        tautx = trig.pwtxengine(npoints, c, ref, norm, params['points'])
-        taurx = trig.rxengine(npoints, c, ref, params['points'])
-        tau = trig.sumvecs(npoints, tautx, taurx, tref)
-        trig.freeme(tautx)
-        trig.freeme(taurx)
+        trig.fillarr(npoints, tau, ctypes.c_float(0))
+        trig.pwtxengine(npoints, c, tref, ref, norm, params['points'], tau)
+        trig.rxengine(npoints, c, ref, params['points'], tau)
 
         # calculate index to select
         trig.calcindices(npoints, nsamp, tstart, fs, tau, mask, tind)
-        trig.freeme(tau)
         pass
 
     def __gen_mask__(self, ind):
@@ -163,8 +159,9 @@ class PWBeamformer(Beamformer):
         # sum up all output vectors and clear from memory(eg and sum)
         print("  Summing results...")
         results = params['results']
-        summed = np.ascontiguousarray(np.zeros(npoints), dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        output = params['output']
+        trig.fillarr(npoints, output, ctypes.c_float(0))
         for idr in range(len(results)):
-            summed = trig.sumvecs(ctypes.c_int(npoints), summed, results[idr], ctypes.c_float(0))
-        return np.array([summed[ind] for ind in range(npoints)])
+            trig.sumvecs(npoints, output, results[idr], ctypes.c_float(0), output)
+        return np.array([output[ind] for ind in range(npoints)])
         
