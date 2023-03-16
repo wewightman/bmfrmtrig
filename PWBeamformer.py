@@ -98,9 +98,9 @@ class PWBeamformer(Beamformer):
         norm = np.ascontiguousarray([np.sin(alpha), 0, np.cos(alpha)], dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
         # calculate time delays
-        tautx = trig.pwtxengine(npoints, c, tref, ref, norm, params['points'])
+        tautx = trig.pwtxengine(npoints, c, ref, norm, params['points'])
         taurx = trig.rxengine(npoints, c, ref, params['points'])
-        tau = trig.sumvecs(npoints, tautx, taurx, 0)
+        tau = trig.sumvecs(npoints, tautx, taurx, tref)
         trig.freeme(tautx)
         trig.freeme(taurx)
 
@@ -164,7 +164,7 @@ class PWBeamformer(Beamformer):
         print("  Summing results...")
         results = params['results']
         summed = np.ascontiguousarray(np.zeros(npoints), dtype=ctypes.c_float).ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        for result in results:
-            summed = trig.sumvecs(ctypes.c_int(npoints), summed, result, ctypes.c_float(0))
+        for idr in range(len(results)):
+            summed = trig.sumvecs(ctypes.c_int(npoints), summed, results[idr], ctypes.c_float(0))
         return np.array([summed[ind] for ind in range(npoints)])
         

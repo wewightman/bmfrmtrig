@@ -15,14 +15,17 @@
  */
 float * rxengine(int N, float c, float * ref, float * points) {
     // define the output array of tau
+    float xdiff;
+    float ydiff;
+    float zdiff;
     float * tau;
     tau = malloc(N*sizeof(float));
 
     // iterate through each point
     for(int i = 0; i < N; ++i) {
-        float xdiff = points[3*i+0] - ref[0];
-        float ydiff = points[3*i+1] - ref[1];
-        float zdiff = points[3*i+1] - ref[2];
+        xdiff = points[3*i+0] - ref[0];
+        ydiff = points[3*i+1] - ref[1];
+        zdiff = points[3*i+2] - ref[2];
 
         tau[i] = sqrtf(xdiff*xdiff + ydiff*ydiff + zdiff*zdiff)/c;
     }
@@ -40,7 +43,7 @@ float * rxengine(int N, float c, float * ref, float * points) {
  * norm: (x, y, z) normal vector
  * xfield, nx, yfield, ny, zfield, nz: pointers to length N arrays of (x, y, z) coordinates in field
  */
-float * pwtxengine(int N, float c, float tref, float *ref, float *norm, float *points) {
+float * pwtxengine(int N, float c, float *ref, float *norm, float *points) {
     // define the output array of tau
     float * tau;
     tau = malloc(N*sizeof(float));
@@ -54,7 +57,7 @@ float * pwtxengine(int N, float c, float tref, float *ref, float *norm, float *p
         ydiff = norm[1] * (points[3*i+1] - ref[1]);
         zdiff = norm[2] * (points[3*i+2] - ref[2]);
 
-        tau[i] = sqrtf(xdiff*xdiff + ydiff*ydiff + zdiff*zdiff)/c;
+        tau[i] = (xdiff + ydiff + zdiff)/c;
     }
 
     // return the time delay pointer
@@ -63,7 +66,7 @@ float * pwtxengine(int N, float c, float tref, float *ref, float *norm, float *p
 
 void genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n, float *focus, float *ref, float *points, int *mask) {
     float nmaj[3] = {n[0], n[1], 0.0f};
-    float nmin[3] = {-n[1], n[0], 0.0f};
+    float nmin[3] = {n[1], -n[0], 0.0f};
     float rmaj;
     float rmin;
     int inmaj;
@@ -78,18 +81,18 @@ void genmask3D(int N, float fmaj, int dynmaj, float fmin, int dynmin, float * n,
 
         // determine if within major axis
         inmaj = 0;
-        if(dynmaj) {
-            if (2.0f*rmaj <= (points[3*i+2] - ref[2])/fmaj) {inmaj=-1;}
+        if(0 != dynmaj) {
+            if (2.0f*rmaj <= (points[3*i+2] - ref[2])/fmaj) {inmaj=1;}
         } else {
             if (2.0f*rmaj <= (focus[2] - ref[2])/fmaj) {inmaj=-1;}
         }
 
         // calculate if within minor axis
         inmin = 0;
-        if(dynmin) {
-            if (2*rmin <= (points[3*i+2] - ref[2])/fmin) {inmin=-1;}
+        if(0 != dynmin) {
+            if (2*rmin <= (points[3*i+2] - ref[2])/fmin) {inmin=1;}
         } else {
-            if (2*rmin <= (focus[2] - ref[2])/fmin) {inmin=-1;}
+            if (2*rmin <= (focus[2] - ref[2])/fmin) {inmin=1;}
         }
 
         mask[i] = inmaj && inmin;

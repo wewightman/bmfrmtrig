@@ -13,7 +13,7 @@ else:
 _trig = ctypes.CDLL(name)
 
 # c function definitions inputs and outputs
-_trig.pwtxengine.argtypes = (ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
+_trig.pwtxengine.argtypes = (ctypes.c_int, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float))
 _trig.pwtxengine.restype = ctypes.POINTER(ctypes.c_float)
 pwtxengine = _trig.pwtxengine
 
