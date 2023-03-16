@@ -1,16 +1,17 @@
 import ctypes
+import os
 import numpy as np
 import ctypes
 from multiprocessing import Pool, RawValue, RawArray
-from Beamformer import Beamformer, __BMFRM_PARAMS__
+from Beamformer import Beamformer, __BMFRM_PARAMS__, __BMFRM_DEBUG__
 
 # python ctype wrappers for c engines
 import trig
 
 class PWBeamformer(Beamformer):
     """Right now, assumes all points are within y=0"""
-    def __init__(self, c, fnum, points, alphas, trefs, refs, fs, tstart, nsamp:int):
-        print("Initializing a PWBeamformer...")
+    def __init__(self, c, fnum, points, alphas, trefs, refs, fs, tstart, nsamp:int, ncores=None):
+        if __BMFRM_DEBUG__: print("Initializing a PWBeamformer...")
         Beamformer.__init__(self)
 
         def putsingles(data, dtype):
@@ -27,7 +28,7 @@ class PWBeamformer(Beamformer):
                     res[ind][indd] = dtype(data[ind,indd])
             return res
         
-        print("  Formatting input parameters...")
+        if __BMFRM_DEBUG__: print("  Formatting input parameters...")
         # copy singleton vectors to param structure
         params = {}
         params['npoints'] = points.shape[0]
@@ -40,6 +41,12 @@ class PWBeamformer(Beamformer):
         params['alphas'] = alphas
         params['refs'] = refs
         params['trefs'] = putsingles(trefs, ctypes.c_float)
+
+        if ncores is None:
+            ncores = os.cpu_count()
+            if ncores is None: ncores = int(1)
+            params['ncores'] = ncores
+
 
         # copy large arrays to ctypes
         params['points'] = RawArray(ctypes.c_float, params['npoints']*3)
@@ -120,14 +127,16 @@ class PWBeamformer(Beamformer):
         trig.genmask3D(npoints, fnum, ctypes.c_int(1), fnum, ctypes.c_int(1), norm, focus, ref, params['points'], mask)
 
     def __init_tabs__(self):
-        print("    Generating Transmission Tabs")
+        if __BMFRM_DEBUG__: print("    Generating Transmission Tabs")
+        params = __BMFRM_PARAMS__[self.id]
         with Pool() as p:
-            p.map(self.__gen_tab__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
+            p.map(self.__gen_tab__, range(params['nacqs']))
     
     def __init_masks__(self):
-        print("    Generating masks")
+        if __BMFRM_DEBUG__: print("    Generating masks")
+        params = __BMFRM_PARAMS__[self.id]
         with Pool() as p:
-            p.map(self.__gen_mask__, range(__BMFRM_PARAMS__[self.id]['nacqs']))
+            p.map(self.__gen_mask__, range(params['nacqs']))
 
     def __get_data__(self, ind):
         params = __BMFRM_PARAMS__[self.id]
@@ -138,30 +147,38 @@ class PWBeamformer(Beamformer):
 
         trig.selectdata(npoints, tind, data, result)
 
+    def __copy_data_2_buffer__(self, data):
+        params = __BMFRM_PARAMS__[self.id]
+        nacqs = params['nacqs']
+        nsamp = params['nsamp']
+        datas = params['datas']
+        norig = ctypes.c_int(nacqs * nsamp)
+        nsub = ctypes.c_int(nsamp)
+        for inda in range(nacqs):
+            trig.copysubvec(norig, nsub, ctypes.c_int(inda), data, datas[inda])
+
+
     def __call__(self, data):
         params = __BMFRM_PARAMS__[self.id]
         nacqs = params['nacqs']
         npoints = params['npoints']
 
-        print("Beamforming")
-        print("  Copying data...")
-        for ind in range(params['nacqs'] * params['nsamp']):
-            indacq = int(ind // params['nsamp'])
-            indsamp = int(ind % params['nsamp'])
-            params['datas'][indacq][indsamp] = ctypes.c_float(data[indsamp][indacq])
+        if __BMFRM_DEBUG__: print("Beamforming...\n  Copying data")
+        self.__copy_data_2_buffer__(data)
 
-        print("  Starting pool...")
         # send data collection to parallelization pool (eg delay)
+        if __BMFRM_DEBUG__: print("  Starting pool...")
         with Pool() as p:
-            print("    Pool active")
             p.map(self.__get_data__, range(nacqs))
 
         # sum up all output vectors and clear from memory(eg and sum)
-        print("  Summing results...")
+        if __BMFRM_DEBUG__: print("  Finished pool. Summing...")
         results = params['results']
         output = params['output']
         trig.fillarr(npoints, output, ctypes.c_float(0))
         for idr in range(len(results)):
             trig.sumvecs(npoints, output, results[idr], ctypes.c_float(0), output)
+        
+        if __BMFRM_DEBUG__: print("  Converting to output array")
         return np.array([output[ind] for ind in range(npoints)])
         

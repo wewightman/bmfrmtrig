@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 
+global __BMFRM_DEBUG__
+__BMFRM_DEBUG__ = False
+
 global __BMFRM_PARAMS__
 __BMFRM_PARAMS__ = []
 

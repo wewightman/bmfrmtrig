@@ -144,6 +144,21 @@ void selectdata(int Ntind, int *tind, float *data, float *dataout) {
 }
 
 /**
+ * copysubsvec
+ * copies subsection of large vector to smaller vector
+ * Norig - number of elements in the original vector
+ * Nsub - number of elements in the sub vector
+ * index - multiplicative offset of subvector
+ * orig - pointer to large, original array
+ * sub - pointer to buffer to store Nsmall elements
+ */
+void copysubvec(int Norig, int Nsub, int index, float *orig, float *sub) {
+    for (int i = 0; (i < Nsub) && (Nsub*index+i < Norig); ++i) {
+        sub[i] = orig[Nsub*index+i];
+    }
+}
+
+/**
  * 
  */
 void printifa(int i, float f, float * a, int na) {

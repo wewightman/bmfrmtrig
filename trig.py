@@ -43,6 +43,14 @@ _trig.selectdata.argtypes = (
     ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)
 )
 selectdata = _trig.selectdata
+
+# copysubvec(int Norig, int Nsub, int index, float *orig, float *sub)
+_trig.copysubvec.argtypes = (
+    ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)
+)
+copysubvec = _trig.copysubvec
+
 _trig.fillarr.argtypes = (
     ctypes.c_int, ctypes.POINTER(ctypes.c_float), ctypes.c_float
 )
