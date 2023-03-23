@@ -3,6 +3,7 @@ from setuptools import Extension, setup
 trig = Extension(
     name="bmfrmtrig.trig._trig",
     include_dirs=["bmfrmtrig/trig"],
+    depends=["bmfrmtrig/trig/trigengines.h"],
     sources=["bmfrmtrig/trig/trigengines.c"]
 )
 

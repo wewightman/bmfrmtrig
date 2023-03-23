@@ -1,13 +1,20 @@
 import platform as _pltfm
 import ctypes
+from glob import glob
+import os
+
+dirpath = os.path.dirname(__file__)
 
 # determine the OS
 if _pltfm.uname()[0] == "Windows":
-    name = "./_trig.dll"
+    res = glob(os.path.abspath(os.path.join(dirpath, "*.dll")))
+    name = res[0]
 elif _pltfm.uname()[0] == "Linux":
-    name = "./_trig.so"
+    res = glob(os.path.abspath(os.path.join(dirpath, "*.so")))
+    name = res[0]
 else:
-    name = "./_trig.dylib"
+    res = glob(os.path.abspath(os.path.join(dirpath, "*.dylib")))
+    name = res[0]
 
 # load the c library
 _trig = ctypes.CDLL(name)

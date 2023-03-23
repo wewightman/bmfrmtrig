@@ -3,7 +3,7 @@ import os
 import numpy as np
 import ctypes
 from multiprocessing import Pool, RawValue, RawArray
-from Beamformer import Beamformer, __BMFRM_PARAMS__, __BMFRM_DEBUG__
+from bmfrmtrig import Beamformer, __BMFRM_PARAMS__, __BMFRM_DEBUG__
 
 # python ctype wrappers for c engines
 import bmfrmtrig.trig as trig
