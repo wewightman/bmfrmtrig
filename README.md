@@ -2,24 +2,16 @@
 C-based trigonometric engines used in delay and sum beamforming
 
 ## Compilation and Instalation
-In order to use these functions directly in python, one must clone the source code, compile it, and install it into their virtual python environment.
-
-*Linux*
+These scripts should be installable on all systems with pip install. 
 
 ```
-git clone https://github.com/wewightman/bmfrmtrig.git
 cd bmfrmtrig
-source compileengines.sh
 pip install .
 ```
 
 ## Testing
-To directly test the C functions, run the following command
+Unit testing has not yet been impleemented. That will be next amjor update.
 
-```
-source runtests.sh
-```
-
-## Cleaning up a messy repo
-To clean the messy repo, simply run `source cleanup.sh' on linux and './cleanup.sh' on windows.
+## Contributors
+ - @wewightman: Owner and main distributor
 
